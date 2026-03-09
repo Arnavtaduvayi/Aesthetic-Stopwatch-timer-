@@ -134,8 +134,19 @@ body {
   width: 360px;
 }
 
+.spotify-panel.dragging,
+.spotify-panel.resizing {
+  user-select: none;
+}
+
+.spotify-panel-tools {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
 .spotify-expand {
-  align-self: flex-start;
   border: 1px solid #2d2d2d;
   background: #050505;
   color: #9f9f9f;
@@ -145,6 +156,20 @@ body {
   font-size: 10px;
   padding: 5px 8px;
   cursor: pointer;
+}
+
+.spotify-drag-handle {
+  border: 1px dashed #2d2d2d;
+  color: #6f6f6f;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 5px 8px;
+  cursor: grab;
+}
+
+.spotify-panel.dragging .spotify-drag-handle {
+  cursor: grabbing;
 }
 
 .spotify-art-shell {
@@ -176,6 +201,16 @@ body {
     rgba(0, 0, 0, 0.5) 68%,
     rgba(0, 0, 0, 0.78) 100%
   );
+}
+
+.spotify-resize-handle {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 16px;
+  height: 16px;
+  cursor: nwse-resize;
+  background: linear-gradient(135deg, transparent 52%, #737373 52%, #737373 60%, transparent 60%);
 }
 
 .spotify-btn {
@@ -320,7 +355,7 @@ body {
 }
 
 body.spotify-visible .time-row {
-  transform: translate(-6vw, -6vh);
+  transform: none;
 }
 
 .time-unit {
@@ -555,6 +590,6 @@ body.clock-mode .seconds .digit {
   }
 
   body.spotify-visible .time-row {
-    transform: translate(-3vw, -8vh);
+    transform: none;
   }
 }

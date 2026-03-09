@@ -22,6 +22,8 @@ const timerApplyBtn = document.getElementById("timer-apply");
 const spotifyConnectBtn = document.getElementById("spotify-connect");
 const spotifyPanelEl = document.getElementById("spotify-panel");
 const spotifyExpandBtn = document.getElementById("spotify-expand");
+const spotifyDragHandleEl = document.getElementById("spotify-drag-handle");
+const spotifyResizeHandleEl = document.getElementById("spotify-resize-handle");
 const spotifyArtEl = document.getElementById("spotify-art");
 const spotifyTrackEl = document.getElementById("spotify-track");
 const spotifyArtistEl = document.getElementById("spotify-artist");
@@ -55,6 +57,7 @@ const SPOTIFY_TOKEN_KEY = "spotify_tokens";
 const SPOTIFY_PKCE_VERIFIER_KEY = "spotify_pkce_verifier";
 const SPOTIFY_PKCE_STATE_KEY = "spotify_pkce_state";
 const SPOTIFY_CLIENT_ID_KEY = "spotify_client_id";
+const SPOTIFY_LAYOUT_KEY = "spotify_panel_layout";
 const SPOTIFY_DEFAULT_CLIENT_ID = "57578693a97b44ec8147a737b03432a8";
 const SPOTIFY_REDIRECT_URI = `${window.location.origin}${window.location.pathname}`;
 
@@ -66,6 +69,8 @@ let spotifyLastIsPlaying = false;
 let spotifyDurationMs = 0;
 let spotifyProgressAnchorTs = Date.now();
 let spotifyExpanded = false;
+let spotifyDragState = null;
+let spotifyResizeState = null;
 
 function formatUnit(value) {
   return String(value).padStart(2, "0");
@@ -259,6 +264,71 @@ function clearSpotifyAuth() {
   localStorage.removeItem(SPOTIFY_PKCE_VERIFIER_KEY);
   localStorage.removeItem(SPOTIFY_PKCE_STATE_KEY);
   setSpotifyUiDisconnected();
+}
+
+function getSpotifyPanelMinWidth() {
+  return 180;
+}
+
+function getSpotifyPanelMaxWidth() {
+  return Math.min(520, window.innerWidth - 24);
+}
+
+function getCurrentSpotifyPanelRect() {
+  const rect = spotifyPanelEl.getBoundingClientRect();
+  return { left: rect.left, top: rect.top, width: rect.width, height: rect.height };
+}
+
+function clampSpotifyPanelWithinViewport() {
+  const rect = getCurrentSpotifyPanelRect();
+  const maxLeft = Math.max(0, window.innerWidth - rect.width);
+  const maxTop = Math.max(0, window.innerHeight - rect.height);
+  const left = Math.min(maxLeft, Math.max(0, rect.left));
+  const top = Math.min(maxTop, Math.max(0, rect.top));
+  spotifyPanelEl.style.left = `${left}px`;
+  spotifyPanelEl.style.top = `${top}px`;
+  spotifyPanelEl.style.bottom = "auto";
+}
+
+function saveSpotifyPanelLayout() {
+  const rect = getCurrentSpotifyPanelRect();
+  const layout = {
+    left: Math.round(rect.left),
+    top: Math.round(rect.top),
+    width: Math.round(rect.width),
+    expanded: spotifyExpanded,
+  };
+  localStorage.setItem(SPOTIFY_LAYOUT_KEY, JSON.stringify(layout));
+}
+
+function applySpotifyPanelLayout() {
+  let parsed = null;
+  try {
+    const raw = localStorage.getItem(SPOTIFY_LAYOUT_KEY);
+    if (raw) parsed = JSON.parse(raw);
+  } catch {
+    parsed = null;
+  }
+
+  const hasSaved = parsed && Number.isFinite(parsed.left) && Number.isFinite(parsed.top);
+  if (hasSaved) {
+    spotifyPanelEl.style.left = `${parsed.left}px`;
+    spotifyPanelEl.style.top = `${parsed.top}px`;
+    spotifyPanelEl.style.bottom = "auto";
+    if (Number.isFinite(parsed.width)) {
+      const width = Math.max(getSpotifyPanelMinWidth(), Math.min(getSpotifyPanelMaxWidth(), parsed.width));
+      spotifyPanelEl.style.width = `${width}px`;
+    }
+    spotifyExpanded = Boolean(parsed.expanded);
+  } else {
+    spotifyPanelEl.style.left = "18px";
+    spotifyPanelEl.style.bottom = "18px";
+    spotifyPanelEl.style.top = "auto";
+  }
+
+  spotifyPanelEl.classList.toggle("expanded", spotifyExpanded);
+  spotifyExpandBtn.textContent = spotifyExpanded ? "collapse" : "expand";
+  clampSpotifyPanelWithinViewport();
 }
 
 function formatTrackTime(ms) {
@@ -730,6 +800,7 @@ spotifyExpandBtn.addEventListener("click", () => {
   spotifyExpanded = !spotifyExpanded;
   spotifyPanelEl.classList.toggle("expanded", spotifyExpanded);
   spotifyExpandBtn.textContent = spotifyExpanded ? "collapse" : "expand";
+  saveSpotifyPanelLayout();
 });
 
 spotifyPrevBtn.addEventListener("click", async () => {
@@ -769,6 +840,77 @@ spotifyRewindBtn.addEventListener("click", async () => {
     updateSpotifyProgressUi();
     setTimeout(fetchNowPlaying, 200);
   } catch {}
+});
+
+spotifyDragHandleEl.addEventListener("pointerdown", (event) => {
+  event.preventDefault();
+  const rect = getCurrentSpotifyPanelRect();
+  spotifyDragState = {
+    pointerId: event.pointerId,
+    startX: event.clientX,
+    startY: event.clientY,
+    originLeft: rect.left,
+    originTop: rect.top,
+  };
+  spotifyPanelEl.classList.add("dragging");
+  spotifyPanelEl.setPointerCapture(event.pointerId);
+});
+
+spotifyResizeHandleEl.addEventListener("pointerdown", (event) => {
+  event.preventDefault();
+  const rect = getCurrentSpotifyPanelRect();
+  spotifyResizeState = {
+    pointerId: event.pointerId,
+    startX: event.clientX,
+    startWidth: rect.width,
+  };
+  spotifyPanelEl.classList.add("resizing");
+  spotifyPanelEl.setPointerCapture(event.pointerId);
+});
+
+spotifyPanelEl.addEventListener("pointermove", (event) => {
+  if (spotifyDragState && spotifyDragState.pointerId === event.pointerId) {
+    const dx = event.clientX - spotifyDragState.startX;
+    const dy = event.clientY - spotifyDragState.startY;
+    const rect = getCurrentSpotifyPanelRect();
+    const maxLeft = Math.max(0, window.innerWidth - rect.width);
+    const maxTop = Math.max(0, window.innerHeight - rect.height);
+    const left = Math.min(maxLeft, Math.max(0, spotifyDragState.originLeft + dx));
+    const top = Math.min(maxTop, Math.max(0, spotifyDragState.originTop + dy));
+    spotifyPanelEl.style.left = `${left}px`;
+    spotifyPanelEl.style.top = `${top}px`;
+    spotifyPanelEl.style.bottom = "auto";
+  }
+
+  if (spotifyResizeState && spotifyResizeState.pointerId === event.pointerId) {
+    const dx = event.clientX - spotifyResizeState.startX;
+    const nextWidth = spotifyResizeState.startWidth + dx;
+    const clamped = Math.max(getSpotifyPanelMinWidth(), Math.min(getSpotifyPanelMaxWidth(), nextWidth));
+    spotifyPanelEl.style.width = `${clamped}px`;
+    clampSpotifyPanelWithinViewport();
+  }
+});
+
+spotifyPanelEl.addEventListener("pointerup", (event) => {
+  if (spotifyDragState && spotifyDragState.pointerId === event.pointerId) {
+    spotifyDragState = null;
+    spotifyPanelEl.classList.remove("dragging");
+    saveSpotifyPanelLayout();
+  }
+  if (spotifyResizeState && spotifyResizeState.pointerId === event.pointerId) {
+    spotifyResizeState = null;
+    spotifyPanelEl.classList.remove("resizing");
+    saveSpotifyPanelLayout();
+  }
+  if (spotifyPanelEl.hasPointerCapture(event.pointerId)) {
+    spotifyPanelEl.releasePointerCapture(event.pointerId);
+  }
+});
+
+window.addEventListener("resize", () => {
+  if (spotifyPanelEl.classList.contains("hidden")) return;
+  clampSpotifyPanelWithinViewport();
+  saveSpotifyPanelLayout();
 });
 
 spotifyProgressEl.addEventListener("input", () => {
@@ -813,6 +955,7 @@ try {
 handleSpotifyAuthCallback().finally(() => {
   if (spotifyTokens) {
     setSpotifyUiConnected();
+    applySpotifyPanelLayout();
     startSpotifyPolling();
   }
 });
