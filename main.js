@@ -137,13 +137,71 @@ function updateDigit(el, value, modeKind) {
 function setDisplay(h, m, s) {
   updateDigit(hourEl, h, "hour");
   updateDigit(minuteEl, m, "minute");
-  updateDigit(secondEl, s, "second");
+  updateSeconds(s);
 }
 
 function setDisplayInstant(h, m, s) {
   setDigitInstant(hourEl, h);
   setDigitInstant(minuteEl, m);
-  setDigitInstant(secondEl, s);
+  setSecondsInstant(s);
+}
+
+function setSecondsInstant(value) {
+  const next = formatUnit(value);
+  const tens = next[0];
+  const ones = next[1];
+  secondEl.dataset.value = next;
+  secondEl.innerHTML = `
+    <div class="sec-scroll">
+      <span class="sec-col" data-col="tens"><span class="sec-static">${tens}</span></span>
+      <span class="sec-col" data-col="ones"><span class="sec-static">${ones}</span></span>
+    </div>
+  `;
+}
+
+function getSecondScrollDirection(prevText, nextText) {
+  const prev = Number.parseInt(prevText, 10);
+  const next = Number.parseInt(nextText, 10);
+  if (Number.isNaN(prev) || Number.isNaN(next)) return "up";
+  if ((prev + 1) % 60 === next) return "up";
+  if ((prev + 59) % 60 === next) return "down";
+  return next > prev ? "up" : "down";
+}
+
+function animateSecondColumn(colEl, oldDigit, newDigit, direction) {
+  if (!colEl || oldDigit === newDigit) return;
+  colEl.innerHTML = `
+    <span class="sec-old">${oldDigit}</span>
+    <span class="sec-new">${newDigit}</span>
+  `;
+  colEl.classList.remove("scroll-up", "scroll-down");
+  // Force reflow to restart animation reliably
+  // eslint-disable-next-line no-unused-expressions
+  colEl.offsetWidth;
+  colEl.classList.add(direction === "down" ? "scroll-down" : "scroll-up");
+  const onDone = () => {
+    colEl.classList.remove("scroll-up", "scroll-down");
+    colEl.innerHTML = `<span class="sec-static">${newDigit}</span>`;
+    colEl.removeEventListener("animationend", onDone);
+  };
+  colEl.addEventListener("animationend", onDone);
+}
+
+function updateSeconds(value) {
+  const next = formatUnit(value);
+  const previous = secondEl.dataset.value ?? "";
+  if (!previous) {
+    setSecondsInstant(value);
+    return;
+  }
+  if (previous === next) return;
+
+  const direction = getSecondScrollDirection(previous, next);
+  const tensEl = secondEl.querySelector('.sec-col[data-col="tens"]');
+  const onesEl = secondEl.querySelector('.sec-col[data-col="ones"]');
+  animateSecondColumn(onesEl, previous[1], next[1], direction);
+  animateSecondColumn(tensEl, previous[0], next[0], direction);
+  secondEl.dataset.value = next;
 }
 
 function setSubValue(text) {
