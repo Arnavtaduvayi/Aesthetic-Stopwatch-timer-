@@ -46,7 +46,7 @@ function animationForMode(modeKind) {
   if (modeKind === "minute") {
     return { outClass: "animate-minute-out", inClass: "animate-minute-in", ms: 400 };
   }
-  return { outClass: "animate-second-out", inClass: "animate-second-in", ms: 400 };
+  return { outClass: "animate-second-out", inClass: "animate-second-in", ms: 520 };
 }
 
 function animateDigit(el, nextValue, modeKind) {
