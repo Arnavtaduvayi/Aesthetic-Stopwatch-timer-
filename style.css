@@ -391,7 +391,7 @@ body.spotify-visible .time-row {
 
 .time-unit {
   position: relative;
-  width: clamp(100px, 22vw, 310px);
+  width: clamp(112px, 23vw, 326px);
   height: clamp(80px, 30vh, 310px);
   overflow: hidden;
   perspective: 900px;
@@ -653,7 +653,7 @@ body.clock-mode .seconds .digit {
 
 @media (max-width: 700px) {
   .time-unit {
-    width: clamp(78px, 22vw, 160px);
+    width: clamp(88px, 24vw, 176px);
     height: clamp(68px, 20vh, 160px);
   }
 
