@@ -11,13 +11,16 @@ const minuteEl = document.getElementById("minutes");
 const secondEl = document.getElementById("seconds");
 const subUnitEl = document.getElementById("sub-unit");
 const subValueEl = document.getElementById("sub-value");
+const ampmEl = document.getElementById("ampm");
 const modeToggleBtn = document.getElementById("mode-toggle");
+const militaryToggleBtn = document.getElementById("military-toggle");
 const actionToggleBtn = document.getElementById("action-toggle");
 const resetBtn = document.getElementById("reset-btn");
 const timerAdjustBtn = document.getElementById("timer-adjust");
 
 let currentMode = Mode.CLOCK;
 let rafId = null;
+let militaryTime = true;
 
 let stopwatchRunning = false;
 let stopwatchStartTs = null;
@@ -159,17 +162,44 @@ function updateActionButtons() {
 
 // -- Clock --
 
-function clockLoop() {
+function getClockHoursMinutesSeconds() {
   const now = new Date();
-  setDisplay(now.getHours(), now.getMinutes(), now.getSeconds());
+  let h = now.getHours();
+  const m = now.getMinutes();
+  const s = now.getSeconds();
+  if (!militaryTime) {
+    h = h % 12 || 12;
+  }
+  return { h, m, s, ampm: militaryTime ? null : (now.getHours() < 12 ? "AM" : "PM") };
+}
+
+function clockLoop() {
+  const { h, m, s, ampm } = getClockHoursMinutesSeconds();
+  setDisplay(h, m, s);
+  if (ampmEl) {
+    if (ampm) {
+      ampmEl.textContent = ampm;
+      ampmEl.classList.remove("hidden");
+    } else {
+      ampmEl.classList.add("hidden");
+    }
+  }
   rafId = requestAnimationFrame(clockLoop);
 }
 
 function startClock() {
   cancelLoop();
-  const now = new Date();
-  setDisplayInstant(now.getHours(), now.getMinutes(), now.getSeconds());
+  const { h, m, s, ampm } = getClockHoursMinutesSeconds();
+  setDisplayInstant(h, m, s);
   hideSubUnit();
+  if (ampmEl) {
+    if (ampm) {
+      ampmEl.textContent = ampm;
+      ampmEl.classList.remove("hidden");
+    } else {
+      ampmEl.classList.add("hidden");
+    }
+  }
   clockLoop();
 }
 
@@ -342,15 +372,27 @@ function setMode(nextMode) {
   if (nextMode === Mode.CLOCK) {
     hideSubUnit();
     startClock();
-  } else if (nextMode === Mode.STOPWATCH) {
-    resetStopwatch();
-  } else if (nextMode === Mode.TIMER) {
-    resetTimer();
+  } else {
+    if (ampmEl) ampmEl.classList.add("hidden");
+    if (nextMode === Mode.STOPWATCH) {
+      resetStopwatch();
+    } else if (nextMode === Mode.TIMER) {
+      resetTimer();
+    }
   }
   updateActionButtons();
 }
 
 // -- Event listeners --
+
+militaryToggleBtn.addEventListener("click", () => {
+  militaryTime = !militaryTime;
+  militaryToggleBtn.textContent = militaryTime ? "24h" : "12h";
+  militaryToggleBtn.classList.toggle("active", militaryTime);
+  if (currentMode === Mode.CLOCK) {
+    startClock();
+  }
+});
 
 modeToggleBtn.addEventListener("click", () => {
   const currentIndex = MODE_ORDER.indexOf(currentMode);
@@ -385,5 +427,8 @@ document.body.classList.add("clock-mode");
 setDisplayInstant(0, 0, 0);
 hideSubUnit();
 modeToggleBtn.textContent = "now";
+militaryToggleBtn.textContent = militaryTime ? "24h" : "12h";
+militaryToggleBtn.classList.toggle("active", militaryTime);
+if (ampmEl) ampmEl.classList.add("hidden");
 updateActionButtons();
 startClock();

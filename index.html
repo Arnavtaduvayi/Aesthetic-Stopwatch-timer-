@@ -4,10 +4,14 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Aesthetic Time</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/dseg@0.46/css/dseg.css" />
     <link rel="stylesheet" href="style.css" />
   </head>
   <body>
     <div class="top-controls">
+      <button id="military-toggle" class="mode-toggle military-toggle" aria-label="24h / 12h" title="Toggle 24-hour (military) or 12-hour time">
+        24h
+      </button>
       <button id="mode-toggle" class="mode-toggle" aria-label="Switch mode">
         now
       </button>
@@ -38,6 +42,7 @@
         <div class="sub-unit hidden" id="sub-unit">
           <span class="sub-digit" id="sub-value">.00</span>
         </div>
+        <span class="ampm hidden" id="ampm"></span>
       </div>
     </main>
 
