@@ -37,7 +37,7 @@ const spotifyRewindBtn = document.getElementById("spotify-rewind");
 
 let currentMode = Mode.CLOCK;
 let rafId = null;
-let militaryTime = true;
+let militaryTime = false;
 
 let stopwatchRunning = false;
 let stopwatchStartTs = null;
@@ -744,7 +744,7 @@ function setMode(nextMode) {
 
 militaryToggleBtn.addEventListener("click", () => {
   militaryTime = !militaryTime;
-  militaryToggleBtn.textContent = militaryTime ? "24h" : "12h";
+  militaryToggleBtn.textContent = militaryTime ? "12h" : "24h";
   militaryToggleBtn.classList.toggle("active", militaryTime);
   if (currentMode === Mode.CLOCK) {
     startClock();
@@ -938,7 +938,7 @@ document.body.classList.add("clock-mode");
 setDisplayInstant(0, 0, 0);
 hideSubUnit();
 modeBtns.forEach((btn) => btn.classList.toggle("active", btn.dataset.mode === Mode.CLOCK));
-militaryToggleBtn.textContent = militaryTime ? "24h" : "12h";
+militaryToggleBtn.textContent = militaryTime ? "12h" : "24h";
 militaryToggleBtn.classList.toggle("active", militaryTime);
 if (ampmEl) ampmEl.classList.add("hidden");
 updateActionButtons();
