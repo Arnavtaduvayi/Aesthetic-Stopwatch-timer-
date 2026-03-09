@@ -10,12 +10,14 @@
     <link rel="stylesheet" href="style.css" />
   </head>
   <body>
-    <div class="top-controls">
+    <div class="top-controls top-controls-left">
+      <button id="mode-now" class="mode-btn active" data-mode="clock" aria-label="Current time">now</button>
+      <button id="mode-stopwatch" class="mode-btn" data-mode="stopwatch" aria-label="Stopwatch">stopwatch</button>
+      <button id="mode-timer" class="mode-btn" data-mode="timer" aria-label="Timer">timer</button>
+    </div>
+    <div class="top-controls top-controls-right">
       <button id="military-toggle" class="mode-toggle military-toggle" aria-label="24h / 12h" title="Toggle 24-hour (military) or 12-hour time">
         24h
-      </button>
-      <button id="mode-toggle" class="mode-toggle" aria-label="Switch mode">
-        now
       </button>
       <button id="action-toggle" class="mode-toggle ghost hidden" aria-label="Start or stop">
         start
@@ -23,9 +25,12 @@
       <button id="reset-btn" class="mode-toggle ghost hidden" aria-label="Reset">
         reset
       </button>
-      <button id="timer-adjust" class="mode-toggle ghost hidden" aria-label="Adjust timer">
-        set 05:00
-      </button>
+      <div class="timer-set hidden" id="timer-set">
+        <input type="number" id="timer-min" min="0" max="599" placeholder="0" aria-label="Minutes" inputmode="numeric" />
+        <span class="timer-set-sep">:</span>
+        <input type="number" id="timer-sec" min="0" max="59" placeholder="0" aria-label="Seconds" inputmode="numeric" />
+        <button id="timer-apply" class="mode-toggle ghost" aria-label="Apply">set</button>
+      </div>
     </div>
 
     <main class="time-display" aria-live="polite">

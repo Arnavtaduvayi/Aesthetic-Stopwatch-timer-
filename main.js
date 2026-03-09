@@ -4,19 +4,20 @@ const Mode = {
   TIMER: "timer",
 };
 
-const MODE_ORDER = [Mode.CLOCK, Mode.STOPWATCH, Mode.TIMER];
-
 const hourEl = document.getElementById("hours");
 const minuteEl = document.getElementById("minutes");
 const secondEl = document.getElementById("seconds");
 const subUnitEl = document.getElementById("sub-unit");
 const subValueEl = document.getElementById("sub-value");
 const ampmEl = document.getElementById("ampm");
-const modeToggleBtn = document.getElementById("mode-toggle");
+const modeBtns = document.querySelectorAll(".mode-btn");
 const militaryToggleBtn = document.getElementById("military-toggle");
 const actionToggleBtn = document.getElementById("action-toggle");
 const resetBtn = document.getElementById("reset-btn");
-const timerAdjustBtn = document.getElementById("timer-adjust");
+const timerSetEl = document.getElementById("timer-set");
+const timerMinInput = document.getElementById("timer-min");
+const timerSecInput = document.getElementById("timer-sec");
+const timerApplyBtn = document.getElementById("timer-apply");
 
 let currentMode = Mode.CLOCK;
 let rafId = null;
@@ -137,7 +138,7 @@ function cancelLoop() {
 function updateActionButtons() {
   actionToggleBtn.classList.add("hidden");
   resetBtn.classList.add("hidden");
-  timerAdjustBtn.classList.add("hidden");
+  if (timerSetEl) timerSetEl.classList.add("hidden");
 
   if (currentMode === Mode.STOPWATCH) {
     actionToggleBtn.classList.remove("hidden");
@@ -151,13 +152,18 @@ function updateActionButtons() {
   if (currentMode === Mode.TIMER) {
     actionToggleBtn.classList.remove("hidden");
     actionToggleBtn.textContent = timerRunning ? "stop" : "start";
-    if (!timerRunning) {
-      timerAdjustBtn.classList.remove("hidden");
-      resetBtn.classList.remove("hidden");
-      const t = hmsFromMs(timerInitialDurationMs);
-      timerAdjustBtn.textContent = `set ${formatUnit(t.minutes)}:${formatUnit(t.seconds)}`;
+    resetBtn.classList.remove("hidden");
+    if (timerSetEl && !timerRunning) {
+      timerSetEl.classList.remove("hidden");
+      syncTimerInputs();
     }
   }
+}
+
+function syncTimerInputs() {
+  const t = hmsFromMs(timerRemainingMs > 0 ? timerRemainingMs : timerInitialDurationMs);
+  if (timerMinInput) timerMinInput.value = t.minutes;
+  if (timerSecInput) timerSecInput.value = t.seconds;
 }
 
 // -- Clock --
@@ -329,13 +335,14 @@ function resetTimer() {
   updateActionButtons();
 }
 
-function adjustTimerDuration() {
+function applyTimerFromInputs() {
   if (timerRunning) return;
-  timerInitialDurationMs += 30_000;
-  if (timerInitialDurationMs > 3_599_000) {
-    timerInitialDurationMs = 30_000;
-  }
-  timerRemainingMs = timerInitialDurationMs;
+  const min = Math.max(0, Math.min(599, parseInt(timerMinInput?.value || "0", 10) || 0));
+  const sec = Math.max(0, Math.min(59, parseInt(timerSecInput?.value || "0", 10) || 0));
+  const ms = (min * 60 + sec) * 1000;
+  if (ms <= 0) return;
+  timerInitialDurationMs = ms;
+  timerRemainingMs = ms;
   resetTimer();
 }
 
@@ -359,8 +366,9 @@ function setMode(nextMode) {
   const prevMode = currentMode;
   currentMode = nextMode;
 
-  modeToggleBtn.textContent =
-    nextMode === Mode.CLOCK ? "now" : nextMode === Mode.STOPWATCH ? "stopwatch" : "timer";
+  modeBtns.forEach((btn) => {
+    btn.classList.toggle("active", btn.dataset.mode === nextMode);
+  });
 
   document.body.className = "";
   if (nextMode === Mode.CLOCK) document.body.classList.add("clock-mode");
@@ -394,10 +402,13 @@ militaryToggleBtn.addEventListener("click", () => {
   }
 });
 
-modeToggleBtn.addEventListener("click", () => {
-  const currentIndex = MODE_ORDER.indexOf(currentMode);
-  const nextIndex = (currentIndex + 1) % MODE_ORDER.length;
-  setMode(MODE_ORDER[nextIndex]);
+modeBtns.forEach((btn) => {
+  btn.addEventListener("click", () => {
+    const mode = btn.dataset.mode;
+    if (mode === Mode.CLOCK || mode === Mode.STOPWATCH || mode === Mode.TIMER) {
+      setMode(mode);
+    }
+  });
 });
 
 actionToggleBtn.addEventListener("click", () => {
@@ -417,8 +428,15 @@ resetBtn.addEventListener("click", () => {
   if (currentMode === Mode.TIMER) resetTimer();
 });
 
-timerAdjustBtn.addEventListener("click", () => {
-  if (currentMode === Mode.TIMER) adjustTimerDuration();
+timerApplyBtn.addEventListener("click", () => {
+  if (currentMode === Mode.TIMER) applyTimerFromInputs();
+});
+
+[timerMinInput, timerSecInput].forEach((el) => {
+  if (!el) return;
+  el.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") applyTimerFromInputs();
+  });
 });
 
 // -- Init --
@@ -426,7 +444,7 @@ timerAdjustBtn.addEventListener("click", () => {
 document.body.classList.add("clock-mode");
 setDisplayInstant(0, 0, 0);
 hideSubUnit();
-modeToggleBtn.textContent = "now";
+modeBtns.forEach((btn) => btn.classList.toggle("active", btn.dataset.mode === Mode.CLOCK));
 militaryToggleBtn.textContent = militaryTime ? "24h" : "12h";
 militaryToggleBtn.classList.toggle("active", militaryTime);
 if (ampmEl) ampmEl.classList.add("hidden");
