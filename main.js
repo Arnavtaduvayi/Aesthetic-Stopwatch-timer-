@@ -382,6 +382,47 @@ function applySpotifyPanelLayout() {
   clampSpotifyPanelWithinViewport();
 }
 
+function initCustomCursor() {
+  const dot = document.getElementById("cursor-dot");
+  const follower = document.getElementById("cursor-follower");
+  if (!dot || !follower) return;
+  if (window.matchMedia("(hover: none), (pointer: coarse)").matches) return;
+
+  let mouseX = window.innerWidth / 2;
+  let mouseY = window.innerHeight / 2;
+  let trailX = mouseX;
+  let trailY = mouseY;
+
+  function reveal() {
+    dot.style.opacity = "1";
+    follower.style.opacity = "1";
+  }
+
+  window.addEventListener("mousemove", (event) => {
+    mouseX = event.clientX;
+    mouseY = event.clientY;
+    dot.style.left = `${mouseX}px`;
+    dot.style.top = `${mouseY}px`;
+    reveal();
+  });
+
+  document.addEventListener("mouseover", (event) => {
+    const clickable = event.target.closest(
+      'button, a, input, select, textarea, [role="button"]',
+    );
+    follower.classList.toggle("square", Boolean(clickable));
+  });
+
+  function animateFollower() {
+    trailX += (mouseX - trailX) * 0.2;
+    trailY += (mouseY - trailY) * 0.2;
+    follower.style.left = `${trailX}px`;
+    follower.style.top = `${trailY}px`;
+    requestAnimationFrame(animateFollower);
+  }
+  animateFollower();
+}
+
 function formatTrackTime(ms) {
   const totalSec = Math.max(0, Math.floor(ms / 1000));
   const m = Math.floor(totalSec / 60);
@@ -987,6 +1028,7 @@ militaryToggleBtn.classList.toggle("active", militaryTime);
 if (ampmEl) ampmEl.classList.add("hidden");
 updateActionButtons();
 startClock();
+initCustomCursor();
 
 setSpotifyUiDisconnected();
 try {

@@ -10,6 +10,7 @@ body {
   padding: 0;
   height: 100%;
   overflow: hidden;
+  cursor: none;
 }
 
 body {
@@ -17,6 +18,50 @@ body {
     "Courier New", ui-monospace, Menlo, Monaco, monospace;
   background: #000;
   color: #e9e9e9;
+}
+
+button,
+a,
+input,
+textarea,
+select,
+[role="button"] {
+  cursor: none !important;
+}
+
+.cursor-dot {
+  position: fixed;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: #f2f2f2;
+  pointer-events: none;
+  z-index: 9999;
+  transform: translate(-50%, -50%);
+  opacity: 0;
+}
+
+.cursor-follower {
+  position: fixed;
+  width: 14px;
+  height: 14px;
+  border: 1px solid rgba(242, 242, 242, 0.85);
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 9998;
+  transform: translate(-50%, -50%);
+  opacity: 0;
+  transition:
+    border-radius 140ms ease,
+    width 140ms ease,
+    height 140ms ease,
+    border-color 140ms ease;
+}
+
+.cursor-follower.square {
+  border-radius: 2px;
+  width: 12px;
+  height: 12px;
 }
 
 .military-toggle {
@@ -663,5 +708,26 @@ body.clock-mode .seconds .digit {
 
   body.spotify-visible .time-row {
     transform: none;
+  }
+}
+
+@media (hover: none), (pointer: coarse) {
+  html,
+  body {
+    cursor: auto;
+  }
+
+  button,
+  a,
+  input,
+  textarea,
+  select,
+  [role="button"] {
+    cursor: auto !important;
+  }
+
+  .cursor-dot,
+  .cursor-follower {
+    display: none !important;
   }
 }
