@@ -9,12 +9,15 @@ const MODE_ORDER = [Mode.CLOCK, Mode.STOPWATCH, Mode.TIMER];
 const hourEl = document.getElementById("hours");
 const minuteEl = document.getElementById("minutes");
 const secondEl = document.getElementById("seconds");
+const subUnitEl = document.getElementById("sub-unit");
+const subValueEl = document.getElementById("sub-value");
 const modeToggleBtn = document.getElementById("mode-toggle");
 const actionToggleBtn = document.getElementById("action-toggle");
+const resetBtn = document.getElementById("reset-btn");
 const timerAdjustBtn = document.getElementById("timer-adjust");
 
 let currentMode = Mode.CLOCK;
-let currentTimerId = null;
+let rafId = null;
 
 let stopwatchRunning = false;
 let stopwatchStartTs = null;
@@ -22,22 +25,25 @@ let stopwatchAccumulatedMs = 0;
 
 let timerRunning = false;
 let timerEndTs = null;
+let timerRemainingMs = 0;
 let timerInitialDurationMs = 300_000;
-let stopwatchLastSecond = -1;
-let timerLastSecond = -1;
 
 function formatUnit(value) {
   return String(value).padStart(2, "0");
 }
 
+function formatMs(ms) {
+  return String(Math.floor(ms / 10) % 100).padStart(2, "0");
+}
+
 function animationForMode(modeKind) {
   if (modeKind === "hour") {
-    return { outClass: "animate-hour-out", inClass: "animate-hour-in", ms: 350 };
+    return { outClass: "animate-hour-out", inClass: "animate-hour-in", ms: 340 };
   }
   if (modeKind === "minute") {
-    return { outClass: "animate-minute-out", inClass: "animate-minute-in", ms: 420 };
+    return { outClass: "animate-minute-out", inClass: "animate-minute-in", ms: 400 };
   }
-  return { outClass: "animate-second-out", inClass: "animate-second-in", ms: 980 };
+  return { outClass: "animate-second-out", inClass: "animate-second-in", ms: 400 };
 }
 
 function animateDigit(el, nextValue, modeKind) {
@@ -55,13 +61,14 @@ function animateDigit(el, nextValue, modeKind) {
   el.innerHTML = "";
   el.append(outgoing, incoming);
   el.dataset.value = nextValue;
-  el.setAttribute("aria-label", nextValue);
 
   setTimeout(() => {
-    incoming.className = "digit-layer current";
-    el.innerHTML = "";
-    el.append(incoming);
-  }, ms + 24);
+    if (el.dataset.value === nextValue) {
+      incoming.className = "digit-layer current";
+      el.innerHTML = "";
+      el.append(incoming);
+    }
+  }, ms + 30);
 }
 
 function setDigitInstant(el, value) {
@@ -95,85 +102,117 @@ function setDisplayInstant(h, m, s) {
   setDigitInstant(secondEl, s);
 }
 
-function formatMsAsClock(ms) {
-  const totalSeconds = Math.max(0, Math.floor(ms / 1000));
-  const hours = Math.floor(totalSeconds / 3600);
-  const minutes = Math.floor((totalSeconds % 3600) / 60);
-  const seconds = totalSeconds % 60;
-  return { hours, minutes, seconds };
+function setSubValue(text) {
+  if (subValueEl) subValueEl.textContent = text;
+}
+
+function showSubUnit() {
+  if (subUnitEl) subUnitEl.classList.remove("hidden");
+}
+
+function hideSubUnit() {
+  if (subUnitEl) subUnitEl.classList.add("hidden");
+}
+
+function hmsFromMs(totalMs) {
+  const totalSeconds = Math.floor(totalMs / 1000);
+  return {
+    hours: Math.floor(totalSeconds / 3600),
+    minutes: Math.floor((totalSeconds % 3600) / 60),
+    seconds: totalSeconds % 60,
+    centiseconds: Math.floor((totalMs % 1000) / 10),
+  };
+}
+
+function cancelLoop() {
+  if (rafId !== null) {
+    cancelAnimationFrame(rafId);
+    rafId = null;
+  }
 }
 
 function updateActionButtons() {
   actionToggleBtn.classList.add("hidden");
+  resetBtn.classList.add("hidden");
   timerAdjustBtn.classList.add("hidden");
 
   if (currentMode === Mode.STOPWATCH) {
     actionToggleBtn.classList.remove("hidden");
     actionToggleBtn.textContent = stopwatchRunning ? "stop" : "start";
+    if (stopwatchAccumulatedMs > 0 || stopwatchRunning) {
+      resetBtn.classList.remove("hidden");
+    }
     return;
   }
 
   if (currentMode === Mode.TIMER) {
     actionToggleBtn.classList.remove("hidden");
-    timerAdjustBtn.classList.remove("hidden");
     actionToggleBtn.textContent = timerRunning ? "stop" : "start";
-    const t = formatMsAsClock(timerInitialDurationMs);
-    timerAdjustBtn.textContent = `set ${formatUnit(t.minutes)}:${formatUnit(t.seconds)}`;
+    if (!timerRunning) {
+      timerAdjustBtn.classList.remove("hidden");
+      resetBtn.classList.remove("hidden");
+      const t = hmsFromMs(timerInitialDurationMs);
+      timerAdjustBtn.textContent = `set ${formatUnit(t.minutes)}:${formatUnit(t.seconds)}`;
+    }
   }
 }
 
-function clearTimer() {
-  if (currentTimerId !== null) {
-    clearTimeout(currentTimerId);
-    clearInterval(currentTimerId);
-    currentTimerId = null;
-  }
+// -- Clock --
+
+function clockLoop() {
+  const now = new Date();
+  setDisplay(now.getHours(), now.getMinutes(), now.getSeconds());
+  rafId = requestAnimationFrame(clockLoop);
 }
 
 function startClock() {
-  clearTimer();
+  cancelLoop();
+  const now = new Date();
+  setDisplayInstant(now.getHours(), now.getMinutes(), now.getSeconds());
+  hideSubUnit();
+  clockLoop();
+}
 
-  function tick() {
-    const now = new Date();
-    setDisplay(now.getHours(), now.getMinutes(), now.getSeconds());
-    const msToNextSecond = 1000 - now.getMilliseconds();
-    currentTimerId = setTimeout(tick, msToNextSecond + 5);
+// -- Stopwatch --
+
+function getStopwatchElapsedMs() {
+  let ms = stopwatchAccumulatedMs;
+  if (stopwatchRunning && stopwatchStartTs !== null) {
+    ms += performance.now() - stopwatchStartTs;
   }
+  return Math.max(0, ms);
+}
 
-  tick();
+function stopwatchLoop() {
+  const elapsedMs = getStopwatchElapsedMs();
+  const { hours, minutes, seconds, centiseconds } = hmsFromMs(elapsedMs);
+  setDisplay(hours, minutes, seconds);
+  setSubValue(`.${formatUnit(centiseconds)}`);
+  if (stopwatchRunning) {
+    rafId = requestAnimationFrame(stopwatchLoop);
+  }
 }
 
 function startStopwatch() {
-  clearTimer();
+  cancelLoop();
   stopwatchRunning = true;
-  if (stopwatchStartTs === null) stopwatchStartTs = performance.now();
+  stopwatchStartTs = performance.now();
   updateActionButtons();
-
-  function tick() {
-    if (!stopwatchRunning) return;
-    const now = performance.now();
-    const elapsedMs = stopwatchAccumulatedMs + (stopwatchRunning ? now - stopwatchStartTs : 0);
-    const totalSeconds = Math.floor(elapsedMs / 1000);
-    if (totalSeconds !== stopwatchLastSecond) {
-      stopwatchLastSecond = totalSeconds;
-      const hours = Math.floor(totalSeconds / 3600);
-      const minutes = Math.floor((totalSeconds % 3600) / 60);
-      const seconds = totalSeconds % 60;
-      setDisplay(hours, minutes, seconds);
-    }
-    const msToNextSecond = 1000 - (elapsedMs % 1000);
-    currentTimerId = setTimeout(tick, Math.max(16, msToNextSecond));
-  }
-
-  tick();
+  showSubUnit();
+  stopwatchLoop();
 }
 
 function pauseStopwatch() {
   if (!stopwatchRunning) return;
-  const now = performance.now();
-  stopwatchAccumulatedMs += now - stopwatchStartTs;
+  stopwatchAccumulatedMs += performance.now() - stopwatchStartTs;
+  stopwatchStartTs = null;
   stopwatchRunning = false;
-  clearTimer();
+  cancelLoop();
+
+  const elapsedMs = getStopwatchElapsedMs();
+  const { hours, minutes, seconds, centiseconds } = hmsFromMs(elapsedMs);
+  setDisplayInstant(hours, minutes, seconds);
+  setSubValue(`.${formatUnit(centiseconds)}`);
   updateActionButtons();
 }
 
@@ -181,9 +220,82 @@ function resetStopwatch() {
   stopwatchRunning = false;
   stopwatchAccumulatedMs = 0;
   stopwatchStartTs = null;
-  stopwatchLastSecond = -1;
-  clearTimer();
+  cancelLoop();
   setDisplayInstant(0, 0, 0);
+  setSubValue(".00");
+  showSubUnit();
+  updateActionButtons();
+}
+
+// -- Timer --
+
+function getTimerRemainingMs() {
+  if (timerRunning && timerEndTs !== null) {
+    return Math.max(0, timerEndTs - performance.now());
+  }
+  return Math.max(0, timerRemainingMs);
+}
+
+function timerLoop() {
+  const remainingMs = getTimerRemainingMs();
+  const { hours, minutes, seconds, centiseconds } = hmsFromMs(remainingMs);
+  setDisplay(hours, minutes, seconds);
+  setSubValue(`.${formatUnit(centiseconds)}`);
+
+  if (remainingMs <= 0) {
+    timerRunning = false;
+    timerRemainingMs = 0;
+    cancelLoop();
+    setDisplayInstant(0, 0, 0);
+    setSubValue(".00");
+    flashTimerComplete();
+    updateActionButtons();
+    return;
+  }
+
+  if (timerRunning) {
+    rafId = requestAnimationFrame(timerLoop);
+  }
+}
+
+function startTimer() {
+  cancelLoop();
+  const ms = timerRemainingMs > 0 ? timerRemainingMs : timerInitialDurationMs;
+  if (ms <= 0) {
+    timerRemainingMs = 30_000;
+    timerInitialDurationMs = 30_000;
+  } else {
+    timerRemainingMs = ms;
+  }
+  timerRunning = true;
+  timerEndTs = performance.now() + timerRemainingMs;
+  updateActionButtons();
+  showSubUnit();
+  timerLoop();
+}
+
+function pauseTimer() {
+  if (!timerRunning) return;
+  timerRemainingMs = Math.max(0, timerEndTs - performance.now());
+  timerEndTs = null;
+  timerRunning = false;
+  cancelLoop();
+
+  const { hours, minutes, seconds, centiseconds } = hmsFromMs(timerRemainingMs);
+  setDisplayInstant(hours, minutes, seconds);
+  setSubValue(`.${formatUnit(centiseconds)}`);
+  updateActionButtons();
+}
+
+function resetTimer() {
+  timerRunning = false;
+  timerEndTs = null;
+  timerRemainingMs = timerInitialDurationMs;
+  cancelLoop();
+  const { hours, minutes, seconds } = hmsFromMs(timerInitialDurationMs);
+  setDisplayInstant(hours, minutes, seconds);
+  setSubValue(".00");
+  showSubUnit();
   updateActionButtons();
 }
 
@@ -193,66 +305,8 @@ function adjustTimerDuration() {
   if (timerInitialDurationMs > 3_599_000) {
     timerInitialDurationMs = 30_000;
   }
+  timerRemainingMs = timerInitialDurationMs;
   resetTimer();
-  updateActionButtons();
-}
-
-function startTimer() {
-  clearTimer();
-  if (timerInitialDurationMs <= 0) timerInitialDurationMs = 30_000;
-  timerRunning = true;
-  updateActionButtons();
-  const now = performance.now();
-  timerEndTs = now + timerInitialDurationMs;
-  timerLastSecond = -1;
-
-  function tick() {
-    if (!timerRunning) return;
-    const current = performance.now();
-    const remainingMs = Math.max(0, timerEndTs - current);
-    const totalSeconds = Math.floor(remainingMs / 1000);
-    if (totalSeconds !== timerLastSecond) {
-      timerLastSecond = totalSeconds;
-      const hours = Math.floor(totalSeconds / 3600);
-      const minutes = Math.floor((totalSeconds % 3600) / 60);
-      const seconds = totalSeconds % 60;
-      setDisplay(hours, minutes, seconds);
-    }
-
-    if (remainingMs <= 0) {
-      timerRunning = false;
-      clearTimer();
-      flashTimerComplete();
-      updateActionButtons();
-      return;
-    }
-    const msToNextSecond = remainingMs % 1000 || 1000;
-    currentTimerId = setTimeout(tick, Math.max(16, msToNextSecond));
-  }
-
-  tick();
-}
-
-function pauseTimer() {
-  if (!timerRunning) return;
-  const now = performance.now();
-  const remainingMs = Math.max(0, timerEndTs - now);
-  timerInitialDurationMs = remainingMs;
-  timerRunning = false;
-  clearTimer();
-  updateActionButtons();
-}
-
-function resetTimer() {
-  timerRunning = false;
-  clearTimer();
-  const totalSeconds = Math.floor(timerInitialDurationMs / 1000);
-  const hours = Math.floor(totalSeconds / 3600);
-  const minutes = Math.floor((totalSeconds % 3600) / 60);
-  const seconds = totalSeconds % 60;
-  timerLastSecond = totalSeconds;
-  setDisplayInstant(hours, minutes, seconds);
-  updateActionButtons();
 }
 
 function flashTimerComplete() {
@@ -261,30 +315,32 @@ function flashTimerComplete() {
   row.animate(
     [
       { opacity: 1, transform: "translateY(0)" },
-      { opacity: 0.7, transform: "translateY(-1px)" },
+      { opacity: 0.6, transform: "translateY(-2px)" },
       { opacity: 1, transform: "translateY(0)" },
     ],
-    { duration: 620, easing: "ease-out" },
+    { duration: 700, easing: "ease-out" },
   );
 }
+
+// -- Mode switching --
 
 function setMode(nextMode) {
   if (nextMode === currentMode) return;
   const prevMode = currentMode;
   currentMode = nextMode;
+
   modeToggleBtn.textContent =
     nextMode === Mode.CLOCK ? "now" : nextMode === Mode.STOPWATCH ? "stopwatch" : "timer";
-  document.body.classList.toggle("timer-mode", nextMode === Mode.TIMER);
 
-  clearTimer();
-  if (prevMode === Mode.STOPWATCH && stopwatchRunning) {
-    pauseStopwatch();
-  }
-  if (prevMode === Mode.TIMER && timerRunning) {
-    pauseTimer();
-  }
+  document.body.className = "";
+  if (nextMode === Mode.CLOCK) document.body.classList.add("clock-mode");
+
+  cancelLoop();
+  if (prevMode === Mode.STOPWATCH && stopwatchRunning) pauseStopwatch();
+  if (prevMode === Mode.TIMER && timerRunning) pauseTimer();
 
   if (nextMode === Mode.CLOCK) {
+    hideSubUnit();
     startClock();
   } else if (nextMode === Mode.STOPWATCH) {
     resetStopwatch();
@@ -293,6 +349,8 @@ function setMode(nextMode) {
   }
   updateActionButtons();
 }
+
+// -- Event listeners --
 
 modeToggleBtn.addEventListener("click", () => {
   const currentIndex = MODE_ORDER.indexOf(currentMode);
@@ -306,20 +364,26 @@ actionToggleBtn.addEventListener("click", () => {
     else startStopwatch();
     return;
   }
-
   if (currentMode === Mode.TIMER) {
     if (timerRunning) pauseTimer();
     else startTimer();
   }
 });
 
+resetBtn.addEventListener("click", () => {
+  if (currentMode === Mode.STOPWATCH) resetStopwatch();
+  if (currentMode === Mode.TIMER) resetTimer();
+});
+
 timerAdjustBtn.addEventListener("click", () => {
   if (currentMode === Mode.TIMER) adjustTimerDuration();
 });
 
-// initial render
+// -- Init --
+
+document.body.classList.add("clock-mode");
 setDisplayInstant(0, 0, 0);
+hideSubUnit();
 modeToggleBtn.textContent = "now";
 updateActionButtons();
 startClock();
-

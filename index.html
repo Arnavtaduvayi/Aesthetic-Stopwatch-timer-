@@ -11,10 +11,13 @@
       <button id="mode-toggle" class="mode-toggle" aria-label="Switch mode">
         now
       </button>
-      <button id="action-toggle" class="mode-toggle ghost" aria-label="Start or stop">
+      <button id="action-toggle" class="mode-toggle ghost hidden" aria-label="Start or stop">
         start
       </button>
-      <button id="timer-adjust" class="mode-toggle ghost" aria-label="Adjust timer">
+      <button id="reset-btn" class="mode-toggle ghost hidden" aria-label="Reset">
+        reset
+      </button>
+      <button id="timer-adjust" class="mode-toggle ghost hidden" aria-label="Adjust timer">
         set 05:00
       </button>
     </div>
@@ -32,10 +35,12 @@
         <div class="time-unit seconds">
           <div class="digit" id="seconds">00</div>
         </div>
+        <div class="sub-unit hidden" id="sub-unit">
+          <span class="sub-digit" id="sub-value">.00</span>
+        </div>
       </div>
     </main>
 
     <script src="main.js"></script>
   </body>
 </html>
-
