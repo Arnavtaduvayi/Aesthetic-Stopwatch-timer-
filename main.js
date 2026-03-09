@@ -25,6 +25,9 @@ const spotifyExpandBtn = document.getElementById("spotify-expand");
 const spotifyArtEl = document.getElementById("spotify-art");
 const spotifyTrackEl = document.getElementById("spotify-track");
 const spotifyArtistEl = document.getElementById("spotify-artist");
+const spotifyProgressEl = document.getElementById("spotify-progress");
+const spotifyElapsedEl = document.getElementById("spotify-elapsed");
+const spotifyDurationEl = document.getElementById("spotify-duration");
 const spotifyPrevBtn = document.getElementById("spotify-prev");
 const spotifyPlayBtn = document.getElementById("spotify-play");
 const spotifyNextBtn = document.getElementById("spotify-next");
@@ -52,12 +55,16 @@ const SPOTIFY_TOKEN_KEY = "spotify_tokens";
 const SPOTIFY_PKCE_VERIFIER_KEY = "spotify_pkce_verifier";
 const SPOTIFY_PKCE_STATE_KEY = "spotify_pkce_state";
 const SPOTIFY_CLIENT_ID_KEY = "spotify_client_id";
+const SPOTIFY_DEFAULT_CLIENT_ID = "57578693a97b44ec8147a737b03432a8";
 const SPOTIFY_REDIRECT_URI = `${window.location.origin}${window.location.pathname}`;
 
 let spotifyTokens = null;
 let spotifyPollTimer = null;
+let spotifyFetchTimer = null;
 let spotifyLastProgressMs = 0;
 let spotifyLastIsPlaying = false;
+let spotifyDurationMs = 0;
+let spotifyProgressAnchorTs = Date.now();
 let spotifyExpanded = false;
 
 function formatUnit(value) {
@@ -196,7 +203,7 @@ function syncTimerInputs() {
 }
 
 function readSpotifyClientId() {
-  return localStorage.getItem(SPOTIFY_CLIENT_ID_KEY) || "";
+  return localStorage.getItem(SPOTIFY_CLIENT_ID_KEY) || SPOTIFY_DEFAULT_CLIENT_ID;
 }
 
 function ensureSpotifyClientId() {
@@ -216,6 +223,9 @@ function setSpotifyUiDisconnected() {
   if (spotifyTrackEl) spotifyTrackEl.textContent = "Not connected";
   if (spotifyArtistEl) spotifyArtistEl.textContent = "Connect Spotify to show now playing";
   if (spotifyArtEl) spotifyArtEl.removeAttribute("src");
+  spotifyDurationMs = 0;
+  spotifyLastProgressMs = 0;
+  updateSpotifyProgressUi();
 }
 
 function setSpotifyUiConnected() {
@@ -227,6 +237,10 @@ function stopSpotifyPolling() {
   if (spotifyPollTimer !== null) {
     clearInterval(spotifyPollTimer);
     spotifyPollTimer = null;
+  }
+  if (spotifyFetchTimer !== null) {
+    clearInterval(spotifyFetchTimer);
+    spotifyFetchTimer = null;
   }
 }
 
@@ -243,6 +257,29 @@ function clearSpotifyAuth() {
   localStorage.removeItem(SPOTIFY_PKCE_VERIFIER_KEY);
   localStorage.removeItem(SPOTIFY_PKCE_STATE_KEY);
   setSpotifyUiDisconnected();
+}
+
+function formatTrackTime(ms) {
+  const totalSec = Math.max(0, Math.floor(ms / 1000));
+  const m = Math.floor(totalSec / 60);
+  const s = totalSec % 60;
+  return `${m}:${String(s).padStart(2, "0")}`;
+}
+
+function getLiveSpotifyProgressMs() {
+  if (!spotifyLastIsPlaying) return spotifyLastProgressMs;
+  const delta = Date.now() - spotifyProgressAnchorTs;
+  return Math.min(spotifyDurationMs || Number.MAX_SAFE_INTEGER, spotifyLastProgressMs + delta);
+}
+
+function updateSpotifyProgressUi() {
+  const progress = getLiveSpotifyProgressMs();
+  if (spotifyElapsedEl) spotifyElapsedEl.textContent = formatTrackTime(progress);
+  if (spotifyDurationEl) spotifyDurationEl.textContent = formatTrackTime(spotifyDurationMs);
+  if (spotifyProgressEl) {
+    const ratio = spotifyDurationMs > 0 ? progress / spotifyDurationMs : 0;
+    spotifyProgressEl.value = String(Math.round(Math.max(0, Math.min(1, ratio)) * 1000));
+  }
 }
 
 async function sha256base64url(text) {
@@ -381,6 +418,8 @@ async function fetchNowPlaying() {
     if (!data || !data.item) return;
     spotifyLastProgressMs = data.progress_ms || 0;
     spotifyLastIsPlaying = Boolean(data.is_playing);
+    spotifyDurationMs = data.item.duration_ms || 0;
+    spotifyProgressAnchorTs = Date.now();
     const artUrl = data.item.album?.images?.[0]?.url || "";
     const track = data.item.name || "Unknown track";
     const artist = (data.item.artists || []).map((a) => a.name).join(", ");
@@ -388,6 +427,7 @@ async function fetchNowPlaying() {
     if (spotifyTrackEl) spotifyTrackEl.textContent = track;
     if (spotifyArtistEl) spotifyArtistEl.textContent = artist || "Unknown artist";
     if (spotifyPlayBtn) spotifyPlayBtn.textContent = spotifyLastIsPlaying ? "⏸" : "▶";
+    updateSpotifyProgressUi();
   } catch {
     // keep UI stable on polling errors
   }
@@ -396,7 +436,10 @@ async function fetchNowPlaying() {
 function startSpotifyPolling() {
   stopSpotifyPolling();
   fetchNowPlaying();
-  spotifyPollTimer = setInterval(fetchNowPlaying, 5000);
+  spotifyPollTimer = setInterval(() => {
+    updateSpotifyProgressUi();
+  }, 300);
+  spotifyFetchTimer = setInterval(fetchNowPlaying, 5000);
 }
 
 // -- Clock --
@@ -690,6 +733,7 @@ spotifyExpandBtn.addEventListener("click", () => {
 spotifyPrevBtn.addEventListener("click", async () => {
   try {
     await spotifyApi("/me/player/previous", { method: "POST" });
+    spotifyProgressAnchorTs = Date.now();
     setTimeout(fetchNowPlaying, 280);
   } catch {}
 });
@@ -699,7 +743,9 @@ spotifyPlayBtn.addEventListener("click", async () => {
     const path = spotifyLastIsPlaying ? "/me/player/pause" : "/me/player/play";
     await spotifyApi(path, { method: "PUT" });
     spotifyLastIsPlaying = !spotifyLastIsPlaying;
+    spotifyProgressAnchorTs = Date.now();
     spotifyPlayBtn.textContent = spotifyLastIsPlaying ? "⏸" : "▶";
+    updateSpotifyProgressUi();
     setTimeout(fetchNowPlaying, 220);
   } catch {}
 });
@@ -707,6 +753,7 @@ spotifyPlayBtn.addEventListener("click", async () => {
 spotifyNextBtn.addEventListener("click", async () => {
   try {
     await spotifyApi("/me/player/next", { method: "POST" });
+    spotifyProgressAnchorTs = Date.now();
     setTimeout(fetchNowPlaying, 280);
   } catch {}
 });
@@ -716,7 +763,28 @@ spotifyRewindBtn.addEventListener("click", async () => {
     const rewindTo = Math.max(0, spotifyLastProgressMs - 10_000);
     await spotifyApi(`/me/player/seek?position_ms=${rewindTo}`, { method: "PUT" });
     spotifyLastProgressMs = rewindTo;
+    spotifyProgressAnchorTs = Date.now();
+    updateSpotifyProgressUi();
     setTimeout(fetchNowPlaying, 200);
+  } catch {}
+});
+
+spotifyProgressEl.addEventListener("input", () => {
+  if (spotifyDurationMs <= 0) return;
+  const ratio = Number(spotifyProgressEl.value) / 1000;
+  const previewMs = Math.floor(spotifyDurationMs * ratio);
+  if (spotifyElapsedEl) spotifyElapsedEl.textContent = formatTrackTime(previewMs);
+});
+
+spotifyProgressEl.addEventListener("change", async () => {
+  if (spotifyDurationMs <= 0) return;
+  try {
+    const ratio = Number(spotifyProgressEl.value) / 1000;
+    const seekMs = Math.floor(spotifyDurationMs * ratio);
+    await spotifyApi(`/me/player/seek?position_ms=${seekMs}`, { method: "PUT" });
+    spotifyLastProgressMs = seekMs;
+    spotifyProgressAnchorTs = Date.now();
+    updateSpotifyProgressUi();
   } catch {}
 });
 

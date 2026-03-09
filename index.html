@@ -62,16 +62,21 @@
       <button id="spotify-expand" class="spotify-expand" aria-label="Expand now playing">expand</button>
       <div class="spotify-art-shell">
         <img id="spotify-art" class="spotify-art" alt="Album art" />
-        <div class="spotify-overlay">
-          <button id="spotify-prev" class="spotify-btn" aria-label="Previous">⏮</button>
-          <button id="spotify-play" class="spotify-btn" aria-label="Play or pause">⏯</button>
-          <button id="spotify-next" class="spotify-btn" aria-label="Next">⏭</button>
-          <button id="spotify-rewind" class="spotify-btn" aria-label="Rewind 10 seconds">↺10</button>
-        </div>
       </div>
       <div class="spotify-meta">
         <div id="spotify-track" class="spotify-track">Not connected</div>
         <div id="spotify-artist" class="spotify-artist">Connect Spotify to show now playing</div>
+      </div>
+      <div class="spotify-progress-wrap">
+        <span id="spotify-elapsed" class="spotify-time">0:00</span>
+        <input id="spotify-progress" class="spotify-progress" type="range" min="0" max="1000" value="0" step="1" aria-label="Track progress" />
+        <span id="spotify-duration" class="spotify-time">0:00</span>
+      </div>
+      <div class="spotify-controls">
+        <button id="spotify-prev" class="spotify-btn" aria-label="Previous">⏮</button>
+        <button id="spotify-rewind" class="spotify-btn" aria-label="Rewind 10 seconds">↺10</button>
+        <button id="spotify-play" class="spotify-btn" aria-label="Play or pause">⏯</button>
+        <button id="spotify-next" class="spotify-btn" aria-label="Next">⏭</button>
       </div>
     </section>
 

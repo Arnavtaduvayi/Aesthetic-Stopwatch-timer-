@@ -119,7 +119,7 @@ body {
   position: fixed;
   left: 18px;
   bottom: 18px;
-  width: 180px;
+  width: 220px;
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -131,7 +131,7 @@ body {
 }
 
 .spotify-panel.expanded {
-  width: 320px;
+  width: 360px;
 }
 
 .spotify-expand {
@@ -162,23 +162,6 @@ body {
   display: block;
 }
 
-.spotify-overlay {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  opacity: 0;
-  background: linear-gradient(180deg, rgba(0, 0, 0, 0.05), rgba(0, 0, 0, 0.55));
-  transition: opacity 180ms ease;
-}
-
-.spotify-art-shell:hover .spotify-overlay,
-.spotify-panel.expanded .spotify-overlay {
-  opacity: 1;
-}
-
 .spotify-btn {
   border: 1px solid rgba(255, 255, 255, 0.22);
   background: rgba(0, 0, 0, 0.42);
@@ -187,6 +170,58 @@ body {
   padding: 7px 8px;
   cursor: pointer;
   min-width: 34px;
+}
+
+.spotify-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.spotify-progress-wrap {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 6px;
+}
+
+.spotify-time {
+  color: #6e6e6e;
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  min-width: 28px;
+  text-align: center;
+}
+
+.spotify-progress {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 3px;
+  background: #2a2a2a;
+  border-radius: 999px;
+  outline: none;
+}
+
+.spotify-progress::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #d9d9d9;
+  border: 0;
+  cursor: pointer;
+}
+
+.spotify-progress::-moz-range-thumb {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #d9d9d9;
+  border: 0;
+  cursor: pointer;
 }
 
 .spotify-meta {
@@ -492,10 +527,10 @@ body.clock-mode .seconds .digit {
   .spotify-panel {
     left: 12px;
     bottom: 12px;
-    width: 130px;
+    width: 180px;
   }
 
   .spotify-panel.expanded {
-    width: 220px;
+    width: 300px;
   }
 }
