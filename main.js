@@ -220,6 +220,7 @@ function ensureSpotifyClientId() {
 function setSpotifyUiDisconnected() {
   if (spotifyConnectBtn) spotifyConnectBtn.textContent = "spotify";
   if (spotifyPanelEl) spotifyPanelEl.classList.add("hidden");
+  document.body.classList.remove("spotify-visible");
   if (spotifyTrackEl) spotifyTrackEl.textContent = "Not connected";
   if (spotifyArtistEl) spotifyArtistEl.textContent = "Connect Spotify to show now playing";
   if (spotifyArtEl) spotifyArtEl.removeAttribute("src");
@@ -231,6 +232,7 @@ function setSpotifyUiDisconnected() {
 function setSpotifyUiConnected() {
   if (spotifyConnectBtn) spotifyConnectBtn.textContent = "disconnect";
   if (spotifyPanelEl) spotifyPanelEl.classList.remove("hidden");
+  document.body.classList.add("spotify-visible");
 }
 
 function stopSpotifyPolling() {

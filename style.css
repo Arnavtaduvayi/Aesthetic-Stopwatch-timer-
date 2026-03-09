@@ -162,6 +162,22 @@ body {
   display: block;
 }
 
+.spotify-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 10px;
+  background: linear-gradient(
+    180deg,
+    rgba(0, 0, 0, 0.02) 35%,
+    rgba(0, 0, 0, 0.5) 68%,
+    rgba(0, 0, 0, 0.78) 100%
+  );
+}
+
 .spotify-btn {
   border: 1px solid rgba(255, 255, 255, 0.22);
   background: rgba(0, 0, 0, 0.42);
@@ -231,7 +247,7 @@ body {
 }
 
 .spotify-track {
-  color: #d9d9d9;
+  color: #ececec;
   font-size: 11px;
   white-space: nowrap;
   overflow: hidden;
@@ -239,7 +255,7 @@ body {
 }
 
 .spotify-artist {
-  color: #777;
+  color: #b0b0b0;
   font-size: 10px;
   white-space: nowrap;
   overflow: hidden;
@@ -301,6 +317,10 @@ body {
   display: flex;
   align-items: baseline;
   gap: clamp(4px, 1vw, 14px);
+}
+
+body.spotify-visible .time-row {
+  transform: translate(-6vw, -6vh);
 }
 
 .time-unit {
@@ -532,5 +552,9 @@ body.clock-mode .seconds .digit {
 
   .spotify-panel.expanded {
     width: 300px;
+  }
+
+  body.spotify-visible .time-row {
+    transform: translate(-3vw, -8vh);
   }
 }
