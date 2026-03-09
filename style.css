@@ -139,32 +139,18 @@ body {
   user-select: none;
 }
 
-.spotify-panel-tools {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.spotify-expand {
-  border: 1px solid #2d2d2d;
-  background: #050505;
-  color: #9f9f9f;
-  font-family: inherit;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  font-size: 10px;
-  padding: 5px 8px;
-  cursor: pointer;
-}
-
 .spotify-drag-handle {
-  border: 1px dashed #2d2d2d;
-  color: #6f6f6f;
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 2;
+  border: 1px dashed rgba(255, 255, 255, 0.24);
+  background: rgba(0, 0, 0, 0.35);
+  color: #c0c0c0;
   font-size: 10px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  padding: 5px 8px;
+  padding: 4px 7px;
   cursor: grab;
 }
 

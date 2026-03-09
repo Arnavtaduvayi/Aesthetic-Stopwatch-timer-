@@ -21,7 +21,6 @@ const timerSecInput = document.getElementById("timer-sec");
 const timerApplyBtn = document.getElementById("timer-apply");
 const spotifyConnectBtn = document.getElementById("spotify-connect");
 const spotifyPanelEl = document.getElementById("spotify-panel");
-const spotifyExpandBtn = document.getElementById("spotify-expand");
 const spotifyDragHandleEl = document.getElementById("spotify-drag-handle");
 const spotifyResizeHandleEl = document.getElementById("spotify-resize-handle");
 const spotifyArtEl = document.getElementById("spotify-art");
@@ -68,7 +67,6 @@ let spotifyLastProgressMs = 0;
 let spotifyLastIsPlaying = false;
 let spotifyDurationMs = 0;
 let spotifyProgressAnchorTs = Date.now();
-let spotifyExpanded = false;
 let spotifyDragState = null;
 let spotifyResizeState = null;
 
@@ -354,7 +352,6 @@ function saveSpotifyPanelLayout() {
     left: Math.round(rect.left),
     top: Math.round(rect.top),
     width: Math.round(rect.width),
-    expanded: spotifyExpanded,
   };
   localStorage.setItem(SPOTIFY_LAYOUT_KEY, JSON.stringify(layout));
 }
@@ -377,15 +374,11 @@ function applySpotifyPanelLayout() {
       const width = Math.max(getSpotifyPanelMinWidth(), Math.min(getSpotifyPanelMaxWidth(), parsed.width));
       spotifyPanelEl.style.width = `${width}px`;
     }
-    spotifyExpanded = Boolean(parsed.expanded);
   } else {
     spotifyPanelEl.style.left = "18px";
     spotifyPanelEl.style.bottom = "18px";
     spotifyPanelEl.style.top = "auto";
   }
-
-  spotifyPanelEl.classList.toggle("expanded", spotifyExpanded);
-  spotifyExpandBtn.textContent = spotifyExpanded ? "collapse" : "expand";
   clampSpotifyPanelWithinViewport();
 }
 
@@ -852,13 +845,6 @@ spotifyConnectBtn.addEventListener("click", async () => {
     return;
   }
   await spotifyAuthorize();
-});
-
-spotifyExpandBtn.addEventListener("click", () => {
-  spotifyExpanded = !spotifyExpanded;
-  spotifyPanelEl.classList.toggle("expanded", spotifyExpanded);
-  spotifyExpandBtn.textContent = spotifyExpanded ? "collapse" : "expand";
-  saveSpotifyPanelLayout();
 });
 
 spotifyPrevBtn.addEventListener("click", async () => {
