@@ -15,9 +15,20 @@ const militaryToggleBtn = document.getElementById("military-toggle");
 const actionToggleBtn = document.getElementById("action-toggle");
 const resetBtn = document.getElementById("reset-btn");
 const timerSetEl = document.getElementById("timer-set");
+const timerHrInput = document.getElementById("timer-hr");
 const timerMinInput = document.getElementById("timer-min");
 const timerSecInput = document.getElementById("timer-sec");
 const timerApplyBtn = document.getElementById("timer-apply");
+const spotifyConnectBtn = document.getElementById("spotify-connect");
+const spotifyPanelEl = document.getElementById("spotify-panel");
+const spotifyExpandBtn = document.getElementById("spotify-expand");
+const spotifyArtEl = document.getElementById("spotify-art");
+const spotifyTrackEl = document.getElementById("spotify-track");
+const spotifyArtistEl = document.getElementById("spotify-artist");
+const spotifyPrevBtn = document.getElementById("spotify-prev");
+const spotifyPlayBtn = document.getElementById("spotify-play");
+const spotifyNextBtn = document.getElementById("spotify-next");
+const spotifyRewindBtn = document.getElementById("spotify-rewind");
 
 let currentMode = Mode.CLOCK;
 let rafId = null;
@@ -31,6 +42,23 @@ let timerRunning = false;
 let timerEndTs = null;
 let timerRemainingMs = 0;
 let timerInitialDurationMs = 300_000;
+
+const SPOTIFY_SCOPES = [
+  "user-read-currently-playing",
+  "user-read-playback-state",
+  "user-modify-playback-state",
+].join(" ");
+const SPOTIFY_TOKEN_KEY = "spotify_tokens";
+const SPOTIFY_PKCE_VERIFIER_KEY = "spotify_pkce_verifier";
+const SPOTIFY_PKCE_STATE_KEY = "spotify_pkce_state";
+const SPOTIFY_CLIENT_ID_KEY = "spotify_client_id";
+const SPOTIFY_REDIRECT_URI = `${window.location.origin}${window.location.pathname}`;
+
+let spotifyTokens = null;
+let spotifyPollTimer = null;
+let spotifyLastProgressMs = 0;
+let spotifyLastIsPlaying = false;
+let spotifyExpanded = false;
 
 function formatUnit(value) {
   return String(value).padStart(2, "0");
@@ -162,8 +190,213 @@ function updateActionButtons() {
 
 function syncTimerInputs() {
   const t = hmsFromMs(timerRemainingMs > 0 ? timerRemainingMs : timerInitialDurationMs);
+  if (timerHrInput) timerHrInput.value = t.hours;
   if (timerMinInput) timerMinInput.value = t.minutes;
   if (timerSecInput) timerSecInput.value = t.seconds;
+}
+
+function readSpotifyClientId() {
+  return localStorage.getItem(SPOTIFY_CLIENT_ID_KEY) || "";
+}
+
+function ensureSpotifyClientId() {
+  let clientId = readSpotifyClientId();
+  if (clientId) return clientId;
+  const value = window.prompt("Enter your Spotify Client ID");
+  if (!value) return "";
+  clientId = value.trim();
+  if (!clientId) return "";
+  localStorage.setItem(SPOTIFY_CLIENT_ID_KEY, clientId);
+  return clientId;
+}
+
+function setSpotifyUiDisconnected() {
+  if (spotifyConnectBtn) spotifyConnectBtn.textContent = "spotify";
+  if (spotifyPanelEl) spotifyPanelEl.classList.add("hidden");
+  if (spotifyTrackEl) spotifyTrackEl.textContent = "Not connected";
+  if (spotifyArtistEl) spotifyArtistEl.textContent = "Connect Spotify to show now playing";
+  if (spotifyArtEl) spotifyArtEl.removeAttribute("src");
+}
+
+function setSpotifyUiConnected() {
+  if (spotifyConnectBtn) spotifyConnectBtn.textContent = "disconnect";
+  if (spotifyPanelEl) spotifyPanelEl.classList.remove("hidden");
+}
+
+function stopSpotifyPolling() {
+  if (spotifyPollTimer !== null) {
+    clearInterval(spotifyPollTimer);
+    spotifyPollTimer = null;
+  }
+}
+
+function saveSpotifyTokens(tokens) {
+  spotifyTokens = tokens;
+  localStorage.setItem(SPOTIFY_TOKEN_KEY, JSON.stringify(tokens));
+  setSpotifyUiConnected();
+}
+
+function clearSpotifyAuth() {
+  spotifyTokens = null;
+  stopSpotifyPolling();
+  localStorage.removeItem(SPOTIFY_TOKEN_KEY);
+  localStorage.removeItem(SPOTIFY_PKCE_VERIFIER_KEY);
+  localStorage.removeItem(SPOTIFY_PKCE_STATE_KEY);
+  setSpotifyUiDisconnected();
+}
+
+async function sha256base64url(text) {
+  const msgUint8 = new TextEncoder().encode(text);
+  const hashBuffer = await crypto.subtle.digest("SHA-256", msgUint8);
+  const bytes = Array.from(new Uint8Array(hashBuffer));
+  const binary = String.fromCharCode(...bytes);
+  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
+function randomString(length = 64) {
+  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~";
+  const randomValues = crypto.getRandomValues(new Uint8Array(length));
+  return Array.from(randomValues, (x) => chars[x % chars.length]).join("");
+}
+
+async function spotifyAuthorize() {
+  const clientId = ensureSpotifyClientId();
+  if (!clientId) return;
+  const verifier = randomString(96);
+  const state = randomString(24);
+  const challenge = await sha256base64url(verifier);
+  localStorage.setItem(SPOTIFY_PKCE_VERIFIER_KEY, verifier);
+  localStorage.setItem(SPOTIFY_PKCE_STATE_KEY, state);
+
+  const authUrl = new URL("https://accounts.spotify.com/authorize");
+  authUrl.searchParams.set("client_id", clientId);
+  authUrl.searchParams.set("response_type", "code");
+  authUrl.searchParams.set("redirect_uri", SPOTIFY_REDIRECT_URI);
+  authUrl.searchParams.set("scope", SPOTIFY_SCOPES);
+  authUrl.searchParams.set("state", state);
+  authUrl.searchParams.set("code_challenge_method", "S256");
+  authUrl.searchParams.set("code_challenge", challenge);
+  window.location.href = authUrl.toString();
+}
+
+async function spotifyTokenRequest(params) {
+  const response = await fetch("https://accounts.spotify.com/api/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams(params),
+  });
+  if (!response.ok) {
+    throw new Error("Spotify token request failed");
+  }
+  return response.json();
+}
+
+async function handleSpotifyAuthCallback() {
+  const url = new URL(window.location.href);
+  const code = url.searchParams.get("code");
+  const state = url.searchParams.get("state");
+  if (!code) return;
+
+  const storedState = localStorage.getItem(SPOTIFY_PKCE_STATE_KEY);
+  const verifier = localStorage.getItem(SPOTIFY_PKCE_VERIFIER_KEY);
+  if (!verifier || !storedState || state !== storedState) {
+    clearSpotifyAuth();
+    return;
+  }
+
+  const clientId = readSpotifyClientId();
+  if (!clientId) return;
+
+  try {
+    const data = await spotifyTokenRequest({
+      grant_type: "authorization_code",
+      code,
+      redirect_uri: SPOTIFY_REDIRECT_URI,
+      client_id: clientId,
+      code_verifier: verifier,
+    });
+    saveSpotifyTokens({
+      access_token: data.access_token,
+      refresh_token: data.refresh_token,
+      expires_at: Date.now() + data.expires_in * 1000,
+    });
+  } finally {
+    url.searchParams.delete("code");
+    url.searchParams.delete("state");
+    window.history.replaceState({}, "", url.toString());
+    localStorage.removeItem(SPOTIFY_PKCE_VERIFIER_KEY);
+    localStorage.removeItem(SPOTIFY_PKCE_STATE_KEY);
+  }
+}
+
+async function ensureSpotifyAccessToken() {
+  if (!spotifyTokens) return "";
+  if (Date.now() < spotifyTokens.expires_at - 60_000) return spotifyTokens.access_token;
+  if (!spotifyTokens.refresh_token) return "";
+
+  const clientId = readSpotifyClientId();
+  if (!clientId) return "";
+
+  const data = await spotifyTokenRequest({
+    grant_type: "refresh_token",
+    refresh_token: spotifyTokens.refresh_token,
+    client_id: clientId,
+  });
+  saveSpotifyTokens({
+    access_token: data.access_token,
+    refresh_token: data.refresh_token || spotifyTokens.refresh_token,
+    expires_at: Date.now() + data.expires_in * 1000,
+  });
+  return spotifyTokens.access_token;
+}
+
+async function spotifyApi(path, options = {}) {
+  const token = await ensureSpotifyAccessToken();
+  if (!token) throw new Error("No Spotify token");
+  const response = await fetch(`https://api.spotify.com/v1${path}`, {
+    ...options,
+    headers: {
+      Authorization: `Bearer ${token}`,
+      ...(options.headers || {}),
+    },
+  });
+  if (response.status === 401) {
+    clearSpotifyAuth();
+    throw new Error("Spotify session expired");
+  }
+  return response;
+}
+
+async function fetchNowPlaying() {
+  if (!spotifyTokens) return;
+  try {
+    const response = await spotifyApi("/me/player/currently-playing");
+    if (response.status === 204) {
+      if (spotifyTrackEl) spotifyTrackEl.textContent = "Nothing playing";
+      if (spotifyArtistEl) spotifyArtistEl.textContent = "Start playback in Spotify";
+      return;
+    }
+    if (!response.ok) return;
+    const data = await response.json();
+    if (!data || !data.item) return;
+    spotifyLastProgressMs = data.progress_ms || 0;
+    spotifyLastIsPlaying = Boolean(data.is_playing);
+    const artUrl = data.item.album?.images?.[0]?.url || "";
+    const track = data.item.name || "Unknown track";
+    const artist = (data.item.artists || []).map((a) => a.name).join(", ");
+    if (spotifyArtEl && artUrl) spotifyArtEl.src = artUrl;
+    if (spotifyTrackEl) spotifyTrackEl.textContent = track;
+    if (spotifyArtistEl) spotifyArtistEl.textContent = artist || "Unknown artist";
+    if (spotifyPlayBtn) spotifyPlayBtn.textContent = spotifyLastIsPlaying ? "⏸" : "▶";
+  } catch {
+    // keep UI stable on polling errors
+  }
+}
+
+function startSpotifyPolling() {
+  stopSpotifyPolling();
+  fetchNowPlaying();
+  spotifyPollTimer = setInterval(fetchNowPlaying, 5000);
 }
 
 // -- Clock --
@@ -337,9 +570,10 @@ function resetTimer() {
 
 function applyTimerFromInputs() {
   if (timerRunning) return;
-  const min = Math.max(0, Math.min(599, parseInt(timerMinInput?.value || "0", 10) || 0));
+  const hr = Math.max(0, Math.min(99, parseInt(timerHrInput?.value || "0", 10) || 0));
+  const min = Math.max(0, Math.min(59, parseInt(timerMinInput?.value || "0", 10) || 0));
   const sec = Math.max(0, Math.min(59, parseInt(timerSecInput?.value || "0", 10) || 0));
-  const ms = (min * 60 + sec) * 1000;
+  const ms = (hr * 3600 + min * 60 + sec) * 1000;
   if (ms <= 0) return;
   timerInitialDurationMs = ms;
   timerRemainingMs = ms;
@@ -432,11 +666,58 @@ timerApplyBtn.addEventListener("click", () => {
   if (currentMode === Mode.TIMER) applyTimerFromInputs();
 });
 
-[timerMinInput, timerSecInput].forEach((el) => {
+[timerHrInput, timerMinInput, timerSecInput].forEach((el) => {
   if (!el) return;
   el.addEventListener("keydown", (e) => {
     if (e.key === "Enter") applyTimerFromInputs();
   });
+});
+
+spotifyConnectBtn.addEventListener("click", async () => {
+  if (spotifyTokens) {
+    clearSpotifyAuth();
+    return;
+  }
+  await spotifyAuthorize();
+});
+
+spotifyExpandBtn.addEventListener("click", () => {
+  spotifyExpanded = !spotifyExpanded;
+  spotifyPanelEl.classList.toggle("expanded", spotifyExpanded);
+  spotifyExpandBtn.textContent = spotifyExpanded ? "collapse" : "expand";
+});
+
+spotifyPrevBtn.addEventListener("click", async () => {
+  try {
+    await spotifyApi("/me/player/previous", { method: "POST" });
+    setTimeout(fetchNowPlaying, 280);
+  } catch {}
+});
+
+spotifyPlayBtn.addEventListener("click", async () => {
+  try {
+    const path = spotifyLastIsPlaying ? "/me/player/pause" : "/me/player/play";
+    await spotifyApi(path, { method: "PUT" });
+    spotifyLastIsPlaying = !spotifyLastIsPlaying;
+    spotifyPlayBtn.textContent = spotifyLastIsPlaying ? "⏸" : "▶";
+    setTimeout(fetchNowPlaying, 220);
+  } catch {}
+});
+
+spotifyNextBtn.addEventListener("click", async () => {
+  try {
+    await spotifyApi("/me/player/next", { method: "POST" });
+    setTimeout(fetchNowPlaying, 280);
+  } catch {}
+});
+
+spotifyRewindBtn.addEventListener("click", async () => {
+  try {
+    const rewindTo = Math.max(0, spotifyLastProgressMs - 10_000);
+    await spotifyApi(`/me/player/seek?position_ms=${rewindTo}`, { method: "PUT" });
+    spotifyLastProgressMs = rewindTo;
+    setTimeout(fetchNowPlaying, 200);
+  } catch {}
 });
 
 // -- Init --
@@ -450,3 +731,18 @@ militaryToggleBtn.classList.toggle("active", militaryTime);
 if (ampmEl) ampmEl.classList.add("hidden");
 updateActionButtons();
 startClock();
+
+setSpotifyUiDisconnected();
+try {
+  const storedTokens = localStorage.getItem(SPOTIFY_TOKEN_KEY);
+  if (storedTokens) spotifyTokens = JSON.parse(storedTokens);
+} catch {
+  spotifyTokens = null;
+}
+
+handleSpotifyAuthCallback().finally(() => {
+  if (spotifyTokens) {
+    setSpotifyUiConnected();
+    startSpotifyPolling();
+  }
+});

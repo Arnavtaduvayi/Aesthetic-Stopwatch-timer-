@@ -16,6 +16,9 @@
       <button id="mode-timer" class="mode-btn" data-mode="timer" aria-label="Timer">timer</button>
     </div>
     <div class="top-controls top-controls-right">
+      <button id="spotify-connect" class="mode-toggle ghost" aria-label="Connect Spotify">
+        spotify
+      </button>
       <button id="military-toggle" class="mode-toggle military-toggle" aria-label="24h / 12h" title="Toggle 24-hour (military) or 12-hour time">
         24h
       </button>
@@ -26,7 +29,9 @@
         reset
       </button>
       <div class="timer-set hidden" id="timer-set">
-        <input type="number" id="timer-min" min="0" max="599" placeholder="0" aria-label="Minutes" inputmode="numeric" />
+        <input type="number" id="timer-hr" min="0" max="99" placeholder="0" aria-label="Hours" inputmode="numeric" />
+        <span class="timer-set-sep">:</span>
+        <input type="number" id="timer-min" min="0" max="59" placeholder="0" aria-label="Minutes" inputmode="numeric" />
         <span class="timer-set-sep">:</span>
         <input type="number" id="timer-sec" min="0" max="59" placeholder="0" aria-label="Seconds" inputmode="numeric" />
         <button id="timer-apply" class="mode-toggle ghost" aria-label="Apply">set</button>
@@ -52,6 +57,23 @@
         <span class="ampm hidden" id="ampm"></span>
       </div>
     </main>
+
+    <section class="spotify-panel hidden" id="spotify-panel" aria-live="polite">
+      <button id="spotify-expand" class="spotify-expand" aria-label="Expand now playing">expand</button>
+      <div class="spotify-art-shell">
+        <img id="spotify-art" class="spotify-art" alt="Album art" />
+        <div class="spotify-overlay">
+          <button id="spotify-prev" class="spotify-btn" aria-label="Previous">⏮</button>
+          <button id="spotify-play" class="spotify-btn" aria-label="Play or pause">⏯</button>
+          <button id="spotify-next" class="spotify-btn" aria-label="Next">⏭</button>
+          <button id="spotify-rewind" class="spotify-btn" aria-label="Rewind 10 seconds">↺10</button>
+        </div>
+      </div>
+      <div class="spotify-meta">
+        <div id="spotify-track" class="spotify-track">Not connected</div>
+        <div id="spotify-artist" class="spotify-artist">Connect Spotify to show now playing</div>
+      </div>
+    </section>
 
     <script src="main.js"></script>
   </body>
