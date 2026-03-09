@@ -1,0 +1,15 @@
+{
+  "name": "aesthetic-time",
+  "version": "1.0.0",
+  "private": true,
+  "description": "A very minimal black & grey time screen with clock, stopwatch, and timer modes.",
+  "scripts": {
+    "start": "npx serve .",
+    "auto:push": "node scripts/auto-git-push.mjs"
+  },
+  "devDependencies": {
+    "chokidar": "^4.0.3",
+    "serve": "^14.2.1"
+  }
+}
+

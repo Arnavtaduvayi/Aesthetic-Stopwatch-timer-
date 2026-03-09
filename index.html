@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Aesthetic Time</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div class="top-controls">
+      <button id="mode-toggle" class="mode-toggle" aria-label="Switch mode">
+        now
+      </button>
+      <button id="action-toggle" class="mode-toggle ghost" aria-label="Start or stop">
+        start
+      </button>
+      <button id="timer-adjust" class="mode-toggle ghost" aria-label="Adjust timer">
+        set 05:00
+      </button>
+    </div>
+
+    <main class="time-display" aria-live="polite">
+      <div class="time-row">
+        <div class="time-unit hours">
+          <div class="digit" id="hours">00</div>
+        </div>
+        <div class="separator">:</div>
+        <div class="time-unit minutes">
+          <div class="digit" id="minutes">00</div>
+        </div>
+        <div class="separator">:</div>
+        <div class="time-unit seconds">
+          <div class="digit" id="seconds">00</div>
+        </div>
+      </div>
+    </main>
+
+    <script src="main.js"></script>
+  </body>
+</html>
+
