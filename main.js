@@ -314,7 +314,7 @@ function getTopControlsBottom() {
 
 function fitTimeRowToViewport() {
   if (!timeRowEl) return;
-  timeRowEl.style.transform = "scale(1)";
+  timeRowEl.style.setProperty("--time-fit-scale", "1");
 
   const horizontalPadding = 24;
   const controlsBottom = getTopControlsBottom();
@@ -324,7 +324,7 @@ function fitTimeRowToViewport() {
   if (rect.width <= 0 || rect.height <= 0) return;
 
   const scale = Math.min(1, availableWidth / rect.width, availableHeight / rect.height);
-  timeRowEl.style.transform = `scale(${Math.max(0.35, scale)})`;
+  timeRowEl.style.setProperty("--time-fit-scale", String(Math.max(0.5, scale)));
 }
 
 function requestFitTimeRowToViewport() {

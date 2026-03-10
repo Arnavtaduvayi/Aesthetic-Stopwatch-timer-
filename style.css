@@ -1,3 +1,7 @@
+:root {
+  --time-fit-scale: 1;
+}
+
 *,
 *::before,
 *::after {
@@ -75,10 +79,10 @@ select,
 
 .ampm {
   font-family: inherit;
-  font-size: clamp(18px, 4vw, 48px);
+  font-size: calc(clamp(18px, 4vw, 48px) * var(--time-fit-scale));
   font-weight: 600;
   color: #555;
-  margin-left: clamp(4px, 0.8vw, 12px);
+  margin-left: calc(clamp(4px, 0.8vw, 12px) * var(--time-fit-scale));
   align-self: center;
 }
 
@@ -387,10 +391,8 @@ select,
 .time-row {
   display: flex;
   align-items: baseline;
-  gap: clamp(4px, 1vw, 14px);
+  gap: calc(clamp(4px, 1vw, 14px) * var(--time-fit-scale));
   max-width: 100%;
-  transform-origin: center center;
-  will-change: transform;
 }
 
 body.spotify-visible .time-row {
@@ -399,8 +401,8 @@ body.spotify-visible .time-row {
 
 .time-unit {
   position: relative;
-  width: clamp(112px, 23vw, 326px);
-  height: clamp(80px, 30vh, 310px);
+  width: calc(clamp(112px, 23vw, 326px) * var(--time-fit-scale));
+  height: calc(clamp(80px, 30vh, 310px) * var(--time-fit-scale));
   overflow: hidden;
   perspective: 900px;
 }
@@ -416,19 +418,19 @@ body.spotify-visible .time-row {
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.04em;
-  font-size: clamp(76px, 26vw, 280px);
+  font-size: calc(clamp(76px, 26vw, 280px) * var(--time-fit-scale));
   line-height: 0.92;
   transform-origin: center center;
 }
 
 /* Clock mode: seconds are smaller and dimmer */
 body.clock-mode .seconds {
-  width: clamp(70px, 14vw, 180px);
-  height: clamp(60px, 22vh, 200px);
+  width: calc(clamp(70px, 14vw, 180px) * var(--time-fit-scale));
+  height: calc(clamp(60px, 22vh, 200px) * var(--time-fit-scale));
 }
 
 body.clock-mode .seconds .digit {
-  font-size: clamp(50px, 16vw, 170px);
+  font-size: calc(clamp(50px, 16vw, 170px) * var(--time-fit-scale));
   color: #888;
 }
 
@@ -485,21 +487,21 @@ body.clock-mode .seconds .digit {
 
 .separator {
   font-family: inherit;
-  font-size: clamp(48px, 10vw, 140px);
+  font-size: calc(clamp(48px, 10vw, 140px) * var(--time-fit-scale));
   line-height: 1;
   color: #555;
-  padding-bottom: clamp(4px, 1.8vh, 16px);
+  padding-bottom: calc(clamp(4px, 1.8vh, 16px) * var(--time-fit-scale));
   animation: pulse-dot 1800ms ease-in-out infinite;
 }
 
 .sub-unit {
   align-self: center;
-  margin-left: clamp(2px, 0.4vw, 8px);
+  margin-left: calc(clamp(2px, 0.4vw, 8px) * var(--time-fit-scale));
 }
 
 .sub-digit {
   font-family: inherit;
-  font-size: clamp(28px, 7vw, 90px);
+  font-size: calc(clamp(28px, 7vw, 90px) * var(--time-fit-scale));
   font-weight: 600;
   color: #666;
   font-variant-numeric: tabular-nums;
@@ -665,30 +667,30 @@ body.clock-mode .seconds .digit {
   }
 
   .time-unit {
-    width: clamp(88px, 24vw, 176px);
-    height: clamp(68px, 20vh, 160px);
+    width: calc(clamp(88px, 24vw, 176px) * var(--time-fit-scale));
+    height: calc(clamp(68px, 20vh, 160px) * var(--time-fit-scale));
   }
 
   .digit {
-    font-size: clamp(64px, 22vw, 150px);
+    font-size: calc(clamp(64px, 22vw, 150px) * var(--time-fit-scale));
   }
 
   body.clock-mode .seconds {
-    width: clamp(54px, 12vw, 100px);
-    height: clamp(50px, 14vh, 100px);
+    width: calc(clamp(54px, 12vw, 100px) * var(--time-fit-scale));
+    height: calc(clamp(50px, 14vh, 100px) * var(--time-fit-scale));
   }
 
   body.clock-mode .seconds .digit {
-    font-size: clamp(40px, 12vw, 90px);
+    font-size: calc(clamp(40px, 12vw, 90px) * var(--time-fit-scale));
   }
 
   .separator {
-    font-size: clamp(36px, 7vw, 80px);
-    padding-bottom: clamp(2px, 1vh, 8px);
+    font-size: calc(clamp(36px, 7vw, 80px) * var(--time-fit-scale));
+    padding-bottom: calc(clamp(2px, 1vh, 8px) * var(--time-fit-scale));
   }
 
   .sub-digit {
-    font-size: clamp(20px, 5vw, 50px);
+    font-size: calc(clamp(20px, 5vw, 50px) * var(--time-fit-scale));
   }
 
   .mode-toggle {
