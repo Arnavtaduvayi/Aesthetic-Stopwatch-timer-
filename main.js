@@ -33,6 +33,7 @@ const spotifyPrevBtn = document.getElementById("spotify-prev");
 const spotifyPlayBtn = document.getElementById("spotify-play");
 const spotifyNextBtn = document.getElementById("spotify-next");
 const spotifyRewindBtn = document.getElementById("spotify-rewind");
+const timeRowEl = document.querySelector(".time-row");
 
 let currentMode = Mode.CLOCK;
 let rafId = null;
@@ -69,6 +70,7 @@ let spotifyDurationMs = 0;
 let spotifyProgressAnchorTs = Date.now();
 let spotifyDragState = null;
 let spotifyResizeState = null;
+let fitRowRafId = null;
 
 function formatUnit(value) {
   return String(value).padStart(2, "0");
@@ -254,6 +256,7 @@ function updateActionButtons() {
       syncTimerInputs();
     }
   }
+  requestFitTimeRowToViewport();
 }
 
 function syncTimerInputs() {
@@ -288,12 +291,48 @@ function setSpotifyUiDisconnected() {
   spotifyDurationMs = 0;
   spotifyLastProgressMs = 0;
   updateSpotifyProgressUi();
+  requestFitTimeRowToViewport();
 }
 
 function setSpotifyUiConnected() {
   if (spotifyConnectBtn) spotifyConnectBtn.textContent = "disconnect";
   if (spotifyPanelEl) spotifyPanelEl.classList.remove("hidden");
   document.body.classList.add("spotify-visible");
+  requestFitTimeRowToViewport();
+}
+
+function getTopControlsBottom() {
+  const controls = document.querySelectorAll(".top-controls");
+  let maxBottom = 0;
+  controls.forEach((el) => {
+    const style = window.getComputedStyle(el);
+    if (style.display === "none" || style.visibility === "hidden") return;
+    maxBottom = Math.max(maxBottom, el.getBoundingClientRect().bottom);
+  });
+  return maxBottom;
+}
+
+function fitTimeRowToViewport() {
+  if (!timeRowEl) return;
+  timeRowEl.style.transform = "scale(1)";
+
+  const horizontalPadding = 24;
+  const controlsBottom = getTopControlsBottom();
+  const availableWidth = Math.max(1, window.innerWidth - horizontalPadding);
+  const availableHeight = Math.max(1, window.innerHeight - controlsBottom - 24);
+  const rect = timeRowEl.getBoundingClientRect();
+  if (rect.width <= 0 || rect.height <= 0) return;
+
+  const scale = Math.min(1, availableWidth / rect.width, availableHeight / rect.height);
+  timeRowEl.style.transform = `scale(${Math.max(0.35, scale)})`;
+}
+
+function requestFitTimeRowToViewport() {
+  if (fitRowRafId !== null) cancelAnimationFrame(fitRowRafId);
+  fitRowRafId = requestAnimationFrame(() => {
+    fitRowRafId = null;
+    fitTimeRowToViewport();
+  });
 }
 
 function stopSpotifyPolling() {
@@ -647,6 +686,7 @@ function startClock() {
     }
   }
   clockLoop();
+  requestFitTimeRowToViewport();
 }
 
 // -- Stopwatch --
@@ -830,6 +870,7 @@ function setMode(nextMode) {
     }
   }
   updateActionButtons();
+  requestFitTimeRowToViewport();
 }
 
 // -- Event listeners --
@@ -993,9 +1034,11 @@ spotifyPanelEl.addEventListener("pointerup", (event) => {
 });
 
 window.addEventListener("resize", () => {
-  if (spotifyPanelEl.classList.contains("hidden")) return;
-  clampSpotifyPanelWithinViewport();
-  saveSpotifyPanelLayout();
+  requestFitTimeRowToViewport();
+  if (!spotifyPanelEl.classList.contains("hidden")) {
+    clampSpotifyPanelWithinViewport();
+    saveSpotifyPanelLayout();
+  }
 });
 
 spotifyProgressEl.addEventListener("input", () => {
@@ -1029,6 +1072,7 @@ if (ampmEl) ampmEl.classList.add("hidden");
 updateActionButtons();
 startClock();
 initCustomCursor();
+requestFitTimeRowToViewport();
 
 setSpotifyUiDisconnected();
 try {
@@ -1044,4 +1088,5 @@ handleSpotifyAuthCallback().finally(() => {
     applySpotifyPanelLayout();
     startSpotifyPolling();
   }
+  requestFitTimeRowToViewport();
 });
