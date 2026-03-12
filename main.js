@@ -323,8 +323,16 @@ function fitTimeRowToViewport() {
   const rect = timeRowEl.getBoundingClientRect();
   if (rect.width <= 0 || rect.height <= 0) return;
 
-  const scale = Math.min(1, availableWidth / rect.width, availableHeight / rect.height);
-  timeRowEl.style.setProperty("--time-fit-scale", String(Math.max(0.5, scale)));
+  // Keep a bit of breathing room on medium/small screens instead of only shrinking on overflow.
+  const comfortWidthScale = Math.min(1, Math.max(0.7, availableWidth / 1400));
+  const comfortHeightScale = Math.min(1, Math.max(0.7, availableHeight / 820));
+  const comfortScale = Math.min(comfortWidthScale, comfortHeightScale);
+
+  // Hard safety clamp so content never overflows viewport.
+  const overflowScale = Math.min(1, availableWidth / rect.width, availableHeight / rect.height);
+  const finalScale = Math.min(comfortScale, overflowScale);
+
+  timeRowEl.style.setProperty("--time-fit-scale", String(Math.max(0.5, finalScale)));
 }
 
 function requestFitTimeRowToViewport() {
