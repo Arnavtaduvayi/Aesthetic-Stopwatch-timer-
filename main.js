@@ -1068,6 +1068,33 @@ spotifyProgressEl.addEventListener("change", async () => {
   } catch {}
 });
 
+// -- Notes --
+
+const NOTES_KEY = "aesthetic_time_notes";
+const notesTabBtn = document.getElementById("notes-tab");
+const notesBodyEl = document.getElementById("notes-body");
+const notesAreaEl = document.getElementById("notes-area");
+
+function loadNotes() {
+  const saved = localStorage.getItem(NOTES_KEY);
+  if (saved && notesAreaEl) notesAreaEl.value = saved;
+}
+
+function saveNotes() {
+  if (notesAreaEl) localStorage.setItem(NOTES_KEY, notesAreaEl.value);
+}
+
+notesTabBtn.addEventListener("click", () => {
+  const open = !notesBodyEl.classList.contains("hidden");
+  notesBodyEl.classList.toggle("hidden", open);
+  notesTabBtn.classList.toggle("active", !open);
+  if (!open) notesAreaEl.focus();
+});
+
+notesAreaEl.addEventListener("input", saveNotes);
+
+loadNotes();
+
 // -- Init --
 
 document.body.classList.add("clock-mode");
